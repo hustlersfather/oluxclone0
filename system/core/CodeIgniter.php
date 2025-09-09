@@ -1,559 +1,469 @@
 <?php
 /**
- * CodeIgniter
+ * PDO Application Bootstrap
  *
- * An open source application development framework for PHP
- *
+ * Converted from CodeIgniter to use PDO for database operations
+ * 
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014 - 2019, British Columbia Institute of Technology
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- * @package	CodeIgniter
- * @author	EllisLab Dev Team
- * @copyright	Copyright (c) 2008 - 2014, EllisLab, Inc. (https://ellislab.com/)
- * @copyright	Copyright (c) 2014 - 2019, British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 1.0.0
- * @filesource
- */
-defined('BASEPATH') OR exit('No direct script access allowed');
-
-/**
- * System Initialization File
- *
- * Loads the base classes and executes the request.
- *
- * @package		CodeIgniter
- * @subpackage	CodeIgniter
- * @category	Front-controller
- * @author		EllisLab Dev Team
- * @link		https://codeigniter.com/user_guide/
+ * @package     PDO_Framework
+ * @author      Converted from CodeIgniter
+ * @license     MIT License
  */
 
 /**
- * CodeIgniter Version
+ * Framework Version
  *
- * @var	string
- *
+ * @var string
  */
-	const CI_VERSION = '3.1.10';
+const FRAMEWORK_VERSION = '1.0.0';
+
+// Start output buffering
+ob_start();
 
 /*
  * ------------------------------------------------------
- *  Load the framework constants
+ *  Define framework constants
  * ------------------------------------------------------
  */
-	if (file_exists(APPPATH.'config/'.ENVIRONMENT.'/constants.php'))
-	{
-		require_once(APPPATH.'config/'.ENVIRONMENT.'/constants.php');
-	}
-
-	if (file_exists(APPPATH.'config/constants.php'))
-	{
-		require_once(APPPATH.'config/constants.php');
-	}
-
-/*
- * ------------------------------------------------------
- *  Load the global functions
- * ------------------------------------------------------
- */
-	require_once(BASEPATH.'core/Common.php');
-
-
-/*
- * ------------------------------------------------------
- * Security procedures
- * ------------------------------------------------------
- */
-
-if ( ! is_php('5.4'))
-{
-	ini_set('magic_quotes_runtime', 0);
-
-	if ((bool) ini_get('register_globals'))
-	{
-		$_protected = array(
-			'_SERVER',
-			'_GET',
-			'_POST',
-			'_FILES',
-			'_REQUEST',
-			'_SESSION',
-			'_ENV',
-			'_COOKIE',
-			'GLOBALS',
-			'HTTP_RAW_POST_DATA',
-			'system_path',
-			'application_folder',
-			'view_folder',
-			'_protected',
-			'_registered'
-		);
-
-		$_registered = ini_get('variables_order');
-		foreach (array('E' => '_ENV', 'G' => '_GET', 'P' => '_POST', 'C' => '_COOKIE', 'S' => '_SERVER') as $key => $superglobal)
-		{
-			if (strpos($_registered, $key) === FALSE)
-			{
-				continue;
-			}
-
-			foreach (array_keys($$superglobal) as $var)
-			{
-				if (isset($GLOBALS[$var]) && ! in_array($var, $_protected, TRUE))
-				{
-					$GLOBALS[$var] = NULL;
-				}
-			}
-		}
-	}
+if (!defined('BASEPATH')) {
+    define('BASEPATH', dirname(__FILE__) . '/');
 }
 
+if (!defined('APPPATH')) {
+    define('APPPATH', BASEPATH . 'application/');
+}
+
+if (!defined('VIEWPATH')) {
+    define('VIEWPATH', APPPATH . 'views/');
+}
+
+if (!defined('ENVIRONMENT')) {
+    define('ENVIRONMENT', isset($_SERVER['ENVIRONMENT']) ? $_SERVER['ENVIRONMENT'] : 'development');
+}
 
 /*
  * ------------------------------------------------------
- *  Define a custom error handler so we can log PHP errors
+ *  Load configuration files
  * ------------------------------------------------------
  */
-	set_error_handler('_error_handler');
-	set_exception_handler('_exception_handler');
-	register_shutdown_function('_shutdown_handler');
+$config = [];
+if (file_exists(APPPATH . 'config/' . ENVIRONMENT . '/config.php')) {
+    require_once(APPPATH . 'config/' . ENVIRONMENT . '/config.php');
+}
+if (file_exists(APPPATH . 'config/config.php')) {
+    require_once(APPPATH . 'config/config.php');
+}
+
+// Load database configuration
+$database_config = [];
+if (file_exists(APPPATH . 'config/' . ENVIRONMENT . '/database.php')) {
+    require_once(APPPATH . 'config/' . ENVIRONMENT . '/database.php');
+}
+if (file_exists(APPPATH . 'config/database.php')) {
+    require_once(APPPATH . 'config/database.php');
+}
 
 /*
  * ------------------------------------------------------
- *  Set the subclass_prefix
+ *  Load core functions
  * ------------------------------------------------------
- *
- * Normally the "subclass_prefix" is set in the config file.
- * The subclass prefix allows CI to know if a core class is
- * being extended via a library in the local application
- * "libraries" folder. Since CI allows config items to be
- * overridden via data set in the main index.php file,
- * before proceeding we need to know if a subclass_prefix
- * override exists. If so, we will set this value now,
- * before any classes are loaded
- * Note: Since the config file data is cached it doesn't
- * hurt to load it here.
  */
-	if ( ! empty($assign_to_config['subclass_prefix']))
-	{
-		get_config(array('subclass_prefix' => $assign_to_config['subclass_prefix']));
-	}
+require_once(BASEPATH . 'core/Common.php');
 
 /*
  * ------------------------------------------------------
- *  Should we use a Composer autoloader?
+ *  Security and compatibility checks
  * ------------------------------------------------------
  */
-	if ($composer_autoload = config_item('composer_autoload'))
-	{
-		if ($composer_autoload === TRUE)
-		{
-			file_exists(APPPATH.'vendor/autoload.php')
-				? require_once(APPPATH.'vendor/autoload.php')
-				: log_message('error', '$config[\'composer_autoload\'] is set to TRUE but '.APPPATH.'vendor/autoload.php was not found.');
-		}
-		elseif (file_exists($composer_autoload))
-		{
-			require_once($composer_autoload);
-		}
-		else
-		{
-			log_message('error', 'Could not find the specified $config[\'composer_autoload\'] path: '.$composer_autoload);
-		}
-	}
+if (version_compare(PHP_VERSION, '7.4.0', '<')) {
+    exit('PHP 7.4 or higher is required.');
+}
+
+// Set error reporting based on environment
+switch (ENVIRONMENT) {
+    case 'development':
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
+        break;
+    case 'testing':
+    case 'production':
+        ini_set('display_errors', 0);
+        error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
+        break;
+    default:
+        header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
+        echo 'The application environment is not set correctly.';
+        exit(1);
+}
 
 /*
  * ------------------------------------------------------
- *  Start the timer... tick tock tick tock...
+ *  Set custom error handlers
  * ------------------------------------------------------
  */
-	$BM =& load_class('Benchmark', 'core');
-	$BM->mark('total_execution_time_start');
-	$BM->mark('loading_time:_base_classes_start');
+set_error_handler('framework_error_handler');
+set_exception_handler('framework_exception_handler');
+register_shutdown_function('framework_shutdown_handler');
 
 /*
  * ------------------------------------------------------
- *  Instantiate the hooks class
+ *  Initialize PDO database connection
  * ------------------------------------------------------
  */
-	$EXT =& load_class('Hooks', 'core');
+class DatabaseManager
+{
+    private static $connections = [];
+    
+    public static function connect($group = 'default')
+    {
+        global $database_config;
+        
+        if (isset(self::$connections[$group])) {
+            return self::$connections[$group];
+        }
+        
+        if (!isset($database_config[$group])) {
+            throw new Exception("Database configuration for '{$group}' not found");
+        }
+        
+        $db = $database_config[$group];
+        
+        try {
+            $dsn = "{$db['dbdriver']}:host={$db['hostname']};dbname={$db['database']};charset={$db['char_set']}";
+            if (!empty($db['port'])) {
+                $dsn .= ";port={$db['port']}";
+            }
+            
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_PERSISTENT => $db['pconnect'] ?? false
+            ];
+            
+            self::$connections[$group] = new PDO($dsn, $db['username'], $db['password'], $options);
+            
+            // Set additional PDO attributes if specified
+            if (!empty($db['stricton'])) {
+                self::$connections[$group]->exec("SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'");
+            }
+            
+            return self::$connections[$group];
+            
+        } catch (PDOException $e) {
+            log_message('error', 'Database connection failed: ' . $e->getMessage());
+            show_error('Database connection failed', 500, 'Database Error');
+        }
+    }
+    
+    public static function closeConnection($group = 'default')
+    {
+        if (isset(self::$connections[$group])) {
+            self::$connections[$group] = null;
+            unset(self::$connections[$group]);
+        }
+    }
+    
+    public static function getAllConnections()
+    {
+        return self::$connections;
+    }
+}
 
 /*
  * ------------------------------------------------------
- *  Is there a "pre_system" hook?
+ *  Initialize Composer autoloader if available
  * ------------------------------------------------------
  */
-	$EXT->call_hook('pre_system');
+if (!empty($config['composer_autoload'])) {
+    if ($config['composer_autoload'] === TRUE) {
+        if (file_exists(APPPATH . 'vendor/autoload.php')) {
+            require_once(APPPATH . 'vendor/autoload.php');
+        } else {
+            log_message('error', 'Composer autoload enabled but vendor/autoload.php not found');
+        }
+    } elseif (file_exists($config['composer_autoload'])) {
+        require_once($config['composer_autoload']);
+    } else {
+        log_message('error', 'Could not find composer autoload file: ' . $config['composer_autoload']);
+    }
+}
 
 /*
  * ------------------------------------------------------
- *  Instantiate the config class
+ *  Initialize benchmark and timing
  * ------------------------------------------------------
- *
- * Note: It is important that Config is loaded first as
- * most other classes depend on it either directly or by
- * depending on another class that uses it.
- *
  */
-	$CFG =& load_class('Config', 'core');
-
-	// Do we have any manually set config items in the index.php file?
-	if (isset($assign_to_config) && is_array($assign_to_config))
-	{
-		foreach ($assign_to_config as $key => $value)
-		{
-			$CFG->set_item($key, $value);
-		}
-	}
+require_once(BASEPATH . 'core/Benchmark.php');
+$benchmark = new PDO_Benchmark();
+$benchmark->mark('total_execution_time_start');
+$benchmark->mark('bootstrap_start');
 
 /*
  * ------------------------------------------------------
- * Important charset-related stuff
+ *  Initialize core framework classes
  * ------------------------------------------------------
- *
- * Configure mbstring and/or iconv if they are enabled
- * and set MB_ENABLED and ICONV_ENABLED constants, so
- * that we don't repeatedly do extension_loaded() or
- * function_exists() calls.
- *
- * Note: UTF-8 class depends on this. It used to be done
- * in it's constructor, but it's _not_ class-specific.
- *
  */
-	$charset = strtoupper(config_item('charset'));
-	ini_set('default_charset', $charset);
+require_once(BASEPATH . 'core/Hooks.php');
+require_once(BASEPATH . 'core/Config.php');
+require_once(BASEPATH . 'core/URI.php');
+require_once(BASEPATH . 'core/Router.php');
+require_once(BASEPATH . 'core/Output.php');
+require_once(BASEPATH . 'core/Security.php');
+require_once(BASEPATH . 'core/Input.php');
 
-	if (extension_loaded('mbstring'))
-	{
-		define('MB_ENABLED', TRUE);
-		// mbstring.internal_encoding is deprecated starting with PHP 5.6
-		// and it's usage triggers E_DEPRECATED messages.
-		@ini_set('mbstring.internal_encoding', $charset);
-		// This is required for mb_convert_encoding() to strip invalid characters.
-		// That's utilized by CI_Utf8, but it's also done for consistency with iconv.
-		mb_substitute_character('none');
-	}
-	else
-	{
-		define('MB_ENABLED', FALSE);
-	}
+// Initialize core classes
+$hooks = new Hooks();
+$config_obj = new Config($config);
+$uri = new URI();
+$router = new Router($uri);
+$output = new Output();
+$security = new Security();
+$input = new Input($security);
 
-	// There's an ICONV_IMPL constant, but the PHP manual says that using
-	// iconv's predefined constants is "strongly discouraged".
-	if (extension_loaded('iconv'))
-	{
-		define('ICONV_ENABLED', TRUE);
-		// iconv.internal_encoding is deprecated starting with PHP 5.6
-		// and it's usage triggers E_DEPRECATED messages.
-		@ini_set('iconv.internal_encoding', $charset);
-	}
-	else
-	{
-		define('ICONV_ENABLED', FALSE);
-	}
-
-	if (is_php('5.6'))
-	{
-		ini_set('php.internal_encoding', $charset);
-	}
+// Call pre-system hook
+$hooks->call_hook('pre_system');
 
 /*
  * ------------------------------------------------------
- *  Load compatibility features
+ *  Set charset and encoding
  * ------------------------------------------------------
  */
+$charset = $config['charset'] ?? 'UTF-8';
+ini_set('default_charset', $charset);
 
-	require_once(BASEPATH.'core/compat/mbstring.php');
-	require_once(BASEPATH.'core/compat/hash.php');
-	require_once(BASEPATH.'core/compat/password.php');
-	require_once(BASEPATH.'core/compat/standard.php');
+if (extension_loaded('mbstring')) {
+    define('MB_ENABLED', TRUE);
+    mb_internal_encoding($charset);
+    mb_substitute_character('none');
+} else {
+    define('MB_ENABLED', FALSE);
+}
+
+if (extension_loaded('iconv')) {
+    define('ICONV_ENABLED', TRUE);
+    iconv_set_encoding('internal_encoding', $charset);
+} else {
+    define('ICONV_ENABLED', FALSE);
+}
 
 /*
  * ------------------------------------------------------
- *  Instantiate the UTF-8 class
+ *  Initialize database connection
  * ------------------------------------------------------
  */
-	$UNI =& load_class('Utf8', 'core');
+try {
+    $db = DatabaseManager::connect();
+    // Make database available globally
+    $GLOBALS['db'] = $db;
+} catch (Exception $e) {
+    if (ENVIRONMENT === 'development') {
+        show_error($e->getMessage(), 500, 'Database Connection Error');
+    } else {
+        show_error('A database error occurred', 500, 'System Error');
+    }
+}
 
 /*
  * ------------------------------------------------------
- *  Instantiate the URI class
+ *  Load base controller
  * ------------------------------------------------------
  */
-	$URI =& load_class('URI', 'core');
+require_once(BASEPATH . 'core/Controller.php');
 
 /*
  * ------------------------------------------------------
- *  Instantiate the routing class and set the routing
+ *  Route the request
  * ------------------------------------------------------
  */
-	$RTR =& load_class('Router', 'core', isset($routing) ? $routing : NULL);
+$benchmark->mark('routing_start');
+
+$controller_name = $router->get_class();
+$method_name = $router->get_method();
+$params = $router->get_params();
+
+// Check if controller file exists
+$controller_file = APPPATH . 'controllers/' . $router->get_directory() . $controller_name . '.php';
+
+if (!file_exists($controller_file)) {
+    show_404();
+}
+
+require_once($controller_file);
+
+// Check if controller class exists
+if (!class_exists($controller_name)) {
+    show_404();
+}
+
+$benchmark->mark('routing_end');
 
 /*
  * ------------------------------------------------------
- *  Instantiate the output class
+ *  Pre-controller hook
  * ------------------------------------------------------
  */
-	$OUT =& load_class('Output', 'core');
+$hooks->call_hook('pre_controller');
 
 /*
  * ------------------------------------------------------
- *	Is there a valid cache file? If so, we're done...
+ *  Instantiate and execute controller
  * ------------------------------------------------------
  */
-	if ($EXT->call_hook('cache_override') === FALSE && $OUT->_display_cache($CFG, $URI) === TRUE)
-	{
-		exit;
-	}
+$benchmark->mark('controller_execution_start');
 
-/*
- * -----------------------------------------------------
- * Load the security class for xss and csrf support
- * -----------------------------------------------------
- */
-	$SEC =& load_class('Security', 'core');
+try {
+    // Create controller instance with dependencies
+    $controller = new $controller_name($db, $config_obj, $input, $output, $uri, $security);
+    
+    // Post controller constructor hook
+    $hooks->call_hook('post_controller_constructor');
+    
+    // Check if method exists and is callable
+    if (!method_exists($controller, $method_name)) {
+        if (method_exists($controller, '_remap')) {
+            $controller->_remap($method_name, $params);
+        } else {
+            show_404();
+        }
+    } else {
+        // Check if method is public
+        $reflection = new ReflectionMethod($controller, $method_name);
+        if (!$reflection->isPublic() || $reflection->isConstructor()) {
+            show_404();
+        }
+        
+        // Call the controller method
+        call_user_func_array([$controller, $method_name], $params);
+    }
+    
+} catch (Exception $e) {
+    log_message('error', 'Controller execution error: ' . $e->getMessage());
+    show_error('An error occurred while processing your request', 500);
+}
 
-/*
- * ------------------------------------------------------
- *  Load the Input class and sanitize globals
- * ------------------------------------------------------
- */
-	$IN	=& load_class('Input', 'core');
-
-/*
- * ------------------------------------------------------
- *  Load the Language class
- * ------------------------------------------------------
- */
-	$LANG =& load_class('Lang', 'core');
-
-/*
- * ------------------------------------------------------
- *  Load the app controller and local controller
- * ------------------------------------------------------
- *
- */
-	// Load the base controller class
-	require_once BASEPATH.'core/Controller.php';
-
-	/**
-	 * Reference to the CI_Controller method.
-	 *
-	 * Returns current CI instance object
-	 *
-	 * @return CI_Controller
-	 */
-	function &get_instance()
-	{
-		return CI_Controller::get_instance();
-	}
-
-	if (file_exists(APPPATH.'core/'.$CFG->config['subclass_prefix'].'Controller.php'))
-	{
-		require_once APPPATH.'core/'.$CFG->config['subclass_prefix'].'Controller.php';
-	}
-
-	// Set a mark point for benchmarking
-	$BM->mark('loading_time:_base_classes_end');
+$benchmark->mark('controller_execution_end');
 
 /*
  * ------------------------------------------------------
- *  Sanity checks
+ *  Post-controller hook
  * ------------------------------------------------------
- *
- *  The Router class has already validated the request,
- *  leaving us with 3 options here:
- *
- *	1) an empty class name, if we reached the default
- *	   controller, but it didn't exist;
- *	2) a query string which doesn't go through a
- *	   file_exists() check
- *	3) a regular request for a non-existing page
- *
- *  We handle all of these as a 404 error.
- *
- *  Furthermore, none of the methods in the app controller
- *  or the loader class can be called via the URI, nor can
- *  controller methods that begin with an underscore.
  */
-
-	$e404 = FALSE;
-	$class = ucfirst($RTR->class);
-	$method = $RTR->method;
-
-	if (empty($class) OR ! file_exists(APPPATH.'controllers/'.$RTR->directory.$class.'.php'))
-	{
-		$e404 = TRUE;
-	}
-	else
-	{
-		require_once(APPPATH.'controllers/'.$RTR->directory.$class.'.php');
-
-		if ( ! class_exists($class, FALSE) OR $method[0] === '_' OR method_exists('CI_Controller', $method))
-		{
-			$e404 = TRUE;
-		}
-		elseif (method_exists($class, '_remap'))
-		{
-			$params = array($method, array_slice($URI->rsegments, 2));
-			$method = '_remap';
-		}
-		elseif ( ! method_exists($class, $method))
-		{
-			$e404 = TRUE;
-		}
-		/**
-		 * DO NOT CHANGE THIS, NOTHING ELSE WORKS!
-		 *
-		 * - method_exists() returns true for non-public methods, which passes the previous elseif
-		 * - is_callable() returns false for PHP 4-style constructors, even if there's a __construct()
-		 * - method_exists($class, '__construct') won't work because CI_Controller::__construct() is inherited
-		 * - People will only complain if this doesn't work, even though it is documented that it shouldn't.
-		 *
-		 * ReflectionMethod::isConstructor() is the ONLY reliable check,
-		 * knowing which method will be executed as a constructor.
-		 */
-		elseif ( ! is_callable(array($class, $method)))
-		{
-			$reflection = new ReflectionMethod($class, $method);
-			if ( ! $reflection->isPublic() OR $reflection->isConstructor())
-			{
-				$e404 = TRUE;
-			}
-		}
-	}
-
-	if ($e404)
-	{
-		if ( ! empty($RTR->routes['404_override']))
-		{
-			if (sscanf($RTR->routes['404_override'], '%[^/]/%s', $error_class, $error_method) !== 2)
-			{
-				$error_method = 'index';
-			}
-
-			$error_class = ucfirst($error_class);
-
-			if ( ! class_exists($error_class, FALSE))
-			{
-				if (file_exists(APPPATH.'controllers/'.$RTR->directory.$error_class.'.php'))
-				{
-					require_once(APPPATH.'controllers/'.$RTR->directory.$error_class.'.php');
-					$e404 = ! class_exists($error_class, FALSE);
-				}
-				// Were we in a directory? If so, check for a global override
-				elseif ( ! empty($RTR->directory) && file_exists(APPPATH.'controllers/'.$error_class.'.php'))
-				{
-					require_once(APPPATH.'controllers/'.$error_class.'.php');
-					if (($e404 = ! class_exists($error_class, FALSE)) === FALSE)
-					{
-						$RTR->directory = '';
-					}
-				}
-			}
-			else
-			{
-				$e404 = FALSE;
-			}
-		}
-
-		// Did we reset the $e404 flag? If so, set the rsegments, starting from index 1
-		if ( ! $e404)
-		{
-			$class = $error_class;
-			$method = $error_method;
-
-			$URI->rsegments = array(
-				1 => $class,
-				2 => $method
-			);
-		}
-		else
-		{
-			show_404($RTR->directory.$class.'/'.$method);
-		}
-	}
-
-	if ($method !== '_remap')
-	{
-		$params = array_slice($URI->rsegments, 2);
-	}
+$hooks->call_hook('post_controller');
 
 /*
  * ------------------------------------------------------
- *  Is there a "pre_controller" hook?
+ *  Display output
  * ------------------------------------------------------
  */
-	$EXT->call_hook('pre_controller');
+if ($hooks->call_hook('display_override') === FALSE) {
+    $output->display();
+}
 
 /*
  * ------------------------------------------------------
- *  Instantiate the requested controller
+ *  Post-system hook and cleanup
  * ------------------------------------------------------
  */
-	// Mark a start point so we can benchmark the controller
-	$BM->mark('controller_execution_time_( '.$class.' / '.$method.' )_start');
+$hooks->call_hook('post_system');
 
-	$CI = new $class();
+// Mark end of execution
+$benchmark->mark('total_execution_time_end');
+
+// Log execution time in development mode
+if (ENVIRONMENT === 'development') {
+    $execution_time = $benchmark->elapsed_time('total_execution_time_start', 'total_execution_time_end');
+    log_message('info', "Total execution time: {$execution_time} seconds");
+}
+
+// Close database connections
+DatabaseManager::closeConnection();
 
 /*
  * ------------------------------------------------------
- *  Is there a "post_controller_constructor" hook?
+ *  Helper functions
  * ------------------------------------------------------
  */
-	$EXT->call_hook('post_controller_constructor');
+function &get_instance()
+{
+    // Return current controller instance
+    static $instance;
+    return $instance;
+}
 
-/*
- * ------------------------------------------------------
- *  Call the requested method
- * ------------------------------------------------------
- */
-	call_user_func_array(array(&$CI, $method), $params);
+function show_error($message, $status_code = 500, $heading = 'An Error Was Encountered')
+{
+    http_response_code($status_code);
+    echo "<h1>{$heading}</h1>";
+    echo "<p>{$message}</p>";
+    exit();
+}
 
-	// Mark a benchmark end point
-	$BM->mark('controller_execution_time_( '.$class.' / '.$method.' )_end');
+function show_404()
+{
+    http_response_code(404);
+    echo "<h1>404 Page Not Found</h1>";
+    echo "<p>The page you requested was not found.</p>";
+    exit();
+}
 
-/*
- * ------------------------------------------------------
- *  Is there a "post_controller" hook?
- * ------------------------------------------------------
- */
-	$EXT->call_hook('post_controller');
+function log_message($level, $message)
+{
+    $log_path = APPPATH . 'logs/';
+    if (!is_dir($log_path)) {
+        mkdir($log_path, 0755, true);
+    }
+    
+    $filename = $log_path . 'log-' . date('Y-m-d') . '.log';
+    $log_entry = date('Y-m-d H:i:s') . " [{$level}] {$message}" . PHP_EOL;
+    
+    file_put_contents($filename, $log_entry, FILE_APPEND | LOCK_EX);
+}
 
-/*
- * ------------------------------------------------------
- *  Send the final rendered output to the browser
- * ------------------------------------------------------
- */
-	if ($EXT->call_hook('display_override') === FALSE)
-	{
-		$OUT->_display();
-	}
+function framework_error_handler($severity, $message, $file, $line)
+{
+    if (!(error_reporting() & $severity)) {
+        return;
+    }
+    
+    $error_msg = "Error [{$severity}]: {$message} in {$file} on line {$line}";
+    log_message('error', $error_msg);
+    
+    if (ENVIRONMENT === 'development') {
+        echo "<strong>Error:</strong> {$message} in <strong>{$file}</strong> on line <strong>{$line}</strong><br>";
+    }
+}
 
-/*
- * ------------------------------------------------------
- *  Is there a "post_system" hook?
- * ------------------------------------------------------
- */
-	$EXT->call_hook('post_system');
+function framework_exception_handler($exception)
+{
+    $error_msg = "Uncaught exception: " . $exception->getMessage() . " in " . $exception->getFile() . " on line " . $exception->getLine();
+    log_message('error', $error_msg);
+    
+    if (ENVIRONMENT === 'development') {
+        echo "<h1>Uncaught Exception</h1>";
+        echo "<p><strong>Message:</strong> " . $exception->getMessage() . "</p>";
+        echo "<p><strong>File:</strong> " . $exception->getFile() . "</p>";
+        echo "<p><strong>Line:</strong> " . $exception->getLine() . "</p>";
+        echo "<pre>" . $exception->getTraceAsString() . "</pre>";
+    } else {
+        show_error('An unexpected error occurred');
+    }
+}
+
+function framework_shutdown_handler()
+{
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        $error_msg = "Fatal error: {$error['message']} in {$error['file']} on line {$error['line']}";
+        log_message('error', $error_msg);
+        
+        if (ENVIRONMENT === 'development') {
+            echo "<h1>Fatal Error</h1>";
+            echo "<p>{$error_msg}</p>";
+        } else {
+            show_error('A fatal error occurred');
+        }
+    }
+}
+?>
